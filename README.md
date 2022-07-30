@@ -1,0 +1,2 @@
+# trashly
+ A reactive store.
