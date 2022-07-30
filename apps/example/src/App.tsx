@@ -29,10 +29,19 @@ function Node({ node }: { node: INode }) {
       height={node.height}
       onPointerDown={(e) => {
         store.pause()
-        store.mutate((s) => {
-          s.selectedId = node.id
-          s.status = "pointing"
-        })
+        if (e.shiftKey) {
+          store.mutate((s) => {
+            for (const id in s.nodes) {
+              s.nodes[id].x += e.movementX
+              s.nodes[id].y += e.movementY
+            }
+          })
+        } else {
+          store.mutate((s) => {
+            s.selectedId = node.id
+            s.status = "pointing"
+          })
+        }
         e.stopPropagation()
       }}
       onPointerUp={(e) => {
@@ -78,14 +87,23 @@ function App() {
         }}
         onPointerMove={(e) => {
           if (state.status === "pointing" && state.selectedId) {
-            store.mutate((s) => {
-              const node = s.nodes[s.selectedId!]
+            if (e.shiftKey) {
+              store.mutate((s) => {
+                for (const id in s.nodes) {
+                  s.nodes[id].x += e.movementX
+                  s.nodes[id].y += e.movementY
+                }
+              })
+            } else {
+              store.mutate((s) => {
+                const node = s.nodes[s.selectedId!]
 
-              if (node) {
-                node.x = e.clientX - 50
-                node.y = e.clientY - 50
-              }
-            })
+                if (node) {
+                  node.x = e.clientX - 50
+                  node.y = e.clientY - 50
+                }
+              })
+            }
           }
         }}
       >
