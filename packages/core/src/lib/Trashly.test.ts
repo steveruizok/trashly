@@ -143,3 +143,69 @@ it("Works with mutator", () => {
     interests: { manga: false, anime: false, videoGames: false },
   })
 })
+
+it("Behaves correctly when acting while in undos", () => {
+  const store = new Trashly({ name: "Steve", age: 36 })
+  store.setState({ name: "Steve", age: 37 })
+  store.setState({ name: "Steve!", age: 38 })
+  store.setState({ name: "Steve!!", age: 39 })
+  store.undo()
+  store.undo()
+
+  expect(store.current).toMatchObject({
+    name: "Steve",
+    age: 37,
+  })
+
+  store.setState({ name: "Steve!!", age: 40 })
+  store.undo()
+
+  expect(store.current).toMatchObject({
+    name: "Steve",
+    age: 37,
+  })
+
+  store.redo()
+
+  expect(store.current).toMatchObject({
+    name: "Steve!!",
+    age: 40,
+  })
+})
+
+it("Behaves correctly when pausing and resuming while in undos", () => {
+  const store = new Trashly({ name: "Steve", age: 36 })
+  store.pause()
+  store.setState({ name: "Steve", age: 37 })
+  store.setState({ name: "Steve!", age: 38 })
+  store.setState({ name: "Steve!!", age: 39 })
+  store.resume()
+  store.pause()
+  store.setState({ age: 40 })
+  store.resume()
+  store.pause()
+  store.setState({ name: "Steve!!!!" })
+  store.resume()
+  store.undo()
+
+  expect(store.current).toMatchObject({
+    name: "Steve!!",
+    age: 40,
+  })
+
+  store.pause()
+  store.setState({ age: 44 })
+  store.resume()
+
+  expect(store.current).toMatchObject({
+    name: "Steve!!",
+    age: 44,
+  })
+
+  store.undo()
+
+  expect(store.current).toMatchObject({
+    name: "Steve!!",
+    age: 40,
+  })
+})

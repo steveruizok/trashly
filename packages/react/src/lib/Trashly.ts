@@ -1,7 +1,7 @@
 import { Trashly as _Trashly } from "trashly-core"
 import React, { useSyncExternalStore } from "react"
 
-export class Trashly<T extends Record<string, unknown>> extends _Trashly<T> {
+export class Trashly<T extends object> extends _Trashly<T> {
   constructor(initial: T) {
     super(initial)
   }

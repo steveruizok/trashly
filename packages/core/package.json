@@ -1,6 +1,6 @@
 {
   "name": "trashly-core",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "description": "A reactive store.",
   "author": "Steve Ruiz",
   "license": "MIT",

@@ -4,7 +4,7 @@ import cloneDeep from "lodash.clonedeep"
 import diff from "./diff"
 import { Difference } from "./types"
 
-export class Trashly<T extends Record<string, unknown>> {
+export class Trashly<T extends object> {
   constructor(initial: T) {
     this.prev = initial
     this.current = initial
@@ -29,8 +29,8 @@ export class Trashly<T extends Record<string, unknown>> {
     if (this.isPaused) {
       if (!this.didChangeWhilePaused) {
         this.prev = this.current
+        this.didChangeWhilePaused = true
       }
-      this.didChangeWhilePaused = true
       return
     }
 
@@ -41,7 +41,7 @@ export class Trashly<T extends Record<string, unknown>> {
     if (!this.isPaused) {
       // Commit an entry to the history
       const change = diff(this.prev, this.current)
-      this.history.length = this.pointer + 1
+      this.history = this.history.splice(0, this.pointer + 1)
       this.history.push(change)
       this.pointer++
     }
@@ -173,7 +173,10 @@ export class Trashly<T extends Record<string, unknown>> {
   mutate = (mutator: (state: T) => void) => {
     const next = cloneDeep(this.current)
     mutator(next)
-    this.setState(next)
+
+    this.willChange()
+    this.current = this.processStateBeforeMerging(next)
+    this.didChange()
   }
 
   /**
@@ -198,9 +201,11 @@ export class Trashly<T extends Record<string, unknown>> {
     if (this.didChangeWhilePaused) {
       // Commit an entry to the history
       const change = diff(this.prev, this.current)
-      this.history.length = this.pointer + 1
+      this.prev = this.current
+      this.history = this.history.splice(0, this.pointer + 1)
       this.history.push(change)
       this.pointer++
+      this.didChangeWhilePaused = false
     }
 
     this.isPaused = false
@@ -218,7 +223,7 @@ export class Trashly<T extends Record<string, unknown>> {
     if (this.isPaused) {
       // Resume and undo anything that has changed since we paused
       if (this.didChangeWhilePaused) {
-        this.history.length = this.pointer + 1
+        this.history = this.history.splice(0, this.pointer + 1)
         this.history.push(diff(this.prev, this.current))
         this.pointer = this.history.length - 1
         this.didChangeWhilePaused = false
@@ -271,7 +276,7 @@ export class Trashly<T extends Record<string, unknown>> {
   redo = () => {
     if (this.isPaused) {
       if (this.didChangeWhilePaused) {
-        this.history.length = this.pointer + 1
+        this.history = this.history.splice(0, this.pointer + 1)
         this.history.push(diff(this.prev, this.current))
         this.pointer = this.history.length - 1
         this.didChangeWhilePaused = false

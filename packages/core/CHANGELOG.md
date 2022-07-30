@@ -1,5 +1,17 @@
 # trashly-core
 
+## 0.1.5
+
+### Patch Changes
+
+- Fix resume bug.
+
+## 0.1.4
+
+### Patch Changes
+
+- Fix redo bug.
+
 ## 0.1.3
 
 ### Patch Changes

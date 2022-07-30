@@ -68,3 +68,29 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.canvas {
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  background-color: #2d2d2d;
+  touch-action: none;
+}
+
+.controls {
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  display: flex;
+  z-index: 999;
+  gap: 8px;
+}
