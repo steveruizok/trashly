@@ -1,1 +1,1 @@
-export * from "./Trashly";
+export * from "./Trashly"

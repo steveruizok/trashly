@@ -1,18 +1,18 @@
-import { Difference } from "./types";
+import { Difference } from "./types"
 
-const richTypes = { Date: true, RegExp: true, String: true, Number: true };
+const richTypes = { Date: true, RegExp: true, String: true, Number: true }
 
 export default function diff(
   obj: Record<string, any> | any[],
   newObj: Record<string, any> | any[],
   _stack: Record<string, any>[] = []
 ): Difference[] {
-  let diffs: Difference[] = [];
-  const isObjArray = Array.isArray(obj);
+  let diffs: Difference[] = []
+  const isObjArray = Array.isArray(obj)
 
   for (const key in obj) {
-    const oldObjValue = (obj as any)[key];
-    const path = isObjArray ? +key : key;
+    const oldObjValue = (obj as any)[key]
+    const path = isObjArray ? +key : key
 
     // REMOVE
     if (!(key in newObj)) {
@@ -20,13 +20,13 @@ export default function diff(
         type: "REMOVE",
         path: [path],
         oldValue: (obj as any)[key],
-      });
-      continue;
+      })
+      continue
     }
 
-    const newObjValue = (newObj as any)[key];
+    const newObjValue = (newObj as any)[key]
     const areObjects =
-      typeof oldObjValue === "object" && typeof newObjValue === "object";
+      typeof oldObjValue === "object" && typeof newObjValue === "object"
 
     if (oldObjValue && newObjValue && areObjects) {
       // OBJ TO OBJ, NESTED DIFFS
@@ -34,14 +34,14 @@ export default function diff(
         oldObjValue,
         newObjValue,
         _stack.concat([oldObjValue])
-      );
+      )
       diffs.push.apply(
         diffs,
         nestedDiffs.map((difference) => {
-          difference.path.unshift(path);
-          return difference;
+          difference.path.unshift(path)
+          return difference
         })
-      );
+      )
     } else if (
       // CHANGE
       oldObjValue !== newObjValue &&
@@ -57,12 +57,12 @@ export default function diff(
         type: "CHANGE",
         value: newObjValue,
         oldValue: oldObjValue,
-      });
+      })
     }
   }
 
   // ARRAY
-  const isNewObjArray = Array.isArray(newObj);
+  const isNewObjArray = Array.isArray(newObj)
 
   for (const key in newObj) {
     if (!(key in obj)) {
@@ -70,8 +70,8 @@ export default function diff(
         type: "CREATE",
         path: [isNewObjArray ? +key : key],
         value: (newObj as any)[key],
-      });
+      })
     }
   }
-  return diffs;
+  return diffs
 }
