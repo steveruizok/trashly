@@ -27,7 +27,7 @@ export class Trashly<T extends Record<string, unknown>> extends _Trashly<T> {
     return useSyncExternalStore<ReturnType<K>>(this.subscribe, fn)
   }
 
-  useStaticStore = <K extends (state: T) => any>(selector: K) => {
+  useStaticSelector = <K extends (state: T) => any>(selector: K) => {
     const [fn] = React.useState(() => () => selector(this.getState()))
     return useSyncExternalStore<ReturnType<K>>(this.subscribe, fn)
   }

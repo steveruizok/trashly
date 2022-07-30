@@ -1,77 +1,155 @@
-# Turborepo starter
+# trashly
 
-This is an official Yarn v1 starter turborepo.
+A reactive store that is fine, really.
 
-## What's inside?
+For API documentation, see:
 
-This turborepo uses [Yarn](https://classic.yarnpkg.com/lang/en/) as a package manager. It includes the following packages/apps:
+- Vanilla `packages/core/README.md`
+- React `packages/react/README.md`
 
-### Apps and Packages
+## Development
 
-- `docs`: a [Next.js](https://nextjs.org) app
-- `web`: another [Next.js](https://nextjs.org) app
-- `ui`: a stub React component library shared by both `web` and `docs` applications
-- `eslint-config-custom`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `tsconfig`: `tsconfig.json`s used throughout the monorepo
+```bash
+yarn
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-## Setup
-
-This repository is used in the `npx create-turbo` command, and selected when choosing which package manager you wish to use with your monorepo (Yarn).
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-yarn run build
+yarn dev
 ```
 
-### Develop
+## Installation
 
-To develop all apps and packages, run the following command:
+> **Note:** These docs assume you're using the `trashly-react` library. The vanilla `trashly-core` library is also available and works exactly the same but without the React hooks.
 
-```
-cd my-turborepo
-yarn run dev
-```
-
-### Remote Caching
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.org/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
+```bash
+npm i trashly-react
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your turborepo:
+or
 
 ```
-npx turbo link
+yarn add trashly-react
 ```
 
-## Useful Links
+## Usage
 
-Learn more about the power of Turborepo:
+Create your state with the `Trashly` constructor.
 
-- [Pipelines](https://turborepo.org/docs/core-concepts/pipelines)
-- [Caching](https://turborepo.org/docs/core-concepts/caching)
-- [Remote Caching](https://turborepo.org/docs/core-concepts/remote-caching)
-- [Scoped Tasks](https://turborepo.org/docs/core-concepts/scopes)
-- [Configuration Options](https://turborepo.org/docs/reference/configuration)
-- [CLI Usage](https://turborepo.org/docs/reference/command-line-reference)
+```tsx
+import { Trashly } from "trashly-react"
+
+const store = new Trashly({
+  name: "Steve",
+  age: 93,
+  settings: {
+    theme: "dark",
+  },
+})
+```
+
+> **Tip:** The Trashly constructor takes a generic type for the initial state, in case the full type cannot be inferred from the initial value.
+
+Next, subscribe to the store's changes via its hooks.
+
+```tsx
+const App = () => {
+  const { name, age, settings } = store.useStore()
+
+  return (
+    <div>
+      <h1>{name}</h1>
+      <h2>{age}</h2>
+      <h3>{settings.theme}</h3>
+    </div>
+  )
+}
+```
+
+There are a few hooks you can use:
+
+- `useStore` - Subscribe to any and all changes in the store.
+- `useSelector` - Use a selector function to select out just the state that you need.
+- `useStaticSelector` - Like `useSelector` but you don't really have to memoize the selector function.
+- `useCanUndo` - Subscribe to whether the store can undo or not.
+- `useCanRedo` - Subscribe to whether the store can redo or not.
+- `useIsPaused` - Subscribe to whether the store is paused.
+
+### `store.mutate(state => void)`
+
+You can update the state using `store.mutate()`.
+
+```tsx
+store.mutate((state) => {
+  state.name = "Steve"
+  state.age = 94
+  state.settings.theme = "light"
+})
+```
+
+### `store.undo()`
+
+You can undo changes with `store.undo()`. If the store's history was paused then it will resume when `store.undo()` is called.
+
+```tsx
+// store.current.age = 93
+store.mutate((state) => (state.age = 94))
+// store.current.age = 94
+store.undo()
+// store.current.age = 93
+```
+
+### `store.redo()`
+
+You can redo changes with `store.redo()`. If the store's history was paused then it will resume when `store.redo()` is called.
+
+```tsx
+store.mutate((state) => (state.age = 94))
+store.undo()
+store.redo()
+// store.current.age = 94
+```
+
+### `store.pause()`
+
+You can pause the store's history with `store.pause()`. Changes that occur while paused still effect the state and cause updates, however they do not create entries in the undo / redo stack.
+
+```tsx
+store.mutate((state) => (state.age = 94))
+store.pause()
+store.mutate((state) => (state.age = 95))
+store.mutate((state) => (state.age = 96))
+store.mutate((state) => (state.age = 97))
+store.undo()
+// store.current.age = 94
+```
+
+### `store.resume()`
+
+You can resume the store's history with `store.resume()`. If the state has changed while paused, this will create a new entry in the undo / redo stack.
+
+```tsx
+store.mutate((state) => (state.age = 94))
+store.pause()
+store.mutate((state) => (state.age = 95))
+store.mutate((state) => (state.age = 96))
+store.resume()
+store.mutate((state) => (state.age = 97))
+store.undo()
+// store.current.age = 96
+store.redo()
+// store.current.age = 97
+```
+
+## Contribution
+
+Contributions are welcome! Visit the [GitHub repository](https://github.com/steveruizok/trashly) to submit issues or pull requests.
+
+## License
+
+MIT
+
+## Author
+
+- [@steveruizok](https://twitter.com/steveruizok)
+
+## Support
+
+💕 Love this project? Consider [becoming a sponsor](https://github.com/sponsors/steveruizok?frequency=recurring&sponsor=steveruizok).
