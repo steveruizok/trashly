@@ -1,5 +1,5 @@
 {
-  "name": "@trashly/example",
+  "name": "example",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,7 +11,7 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@trashly/react": "*"
+    "trashly-react": "*"
   },
   "devDependencies": {
     "@types/react": "^18.0.15",

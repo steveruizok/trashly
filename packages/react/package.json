@@ -1,6 +1,6 @@
 {
-  "name": "@trashly/react",
-  "version": "0.0.0",
+  "name": "trashly-react",
+  "version": "0.1.2",
   "description": "A reactive store.",
   "main": "src/index.js",
   "author": "Steve Ruiz",
@@ -15,7 +15,7 @@
     "lint": "TIMING=1 eslint src --fix"
   },
   "dependencies": {
-    "@trashly/core": "*",
+    "trashly-core": "*",
     "react": "^18"
   },
   "devDependencies": {

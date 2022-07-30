@@ -1,6 +1,6 @@
 {
-  "name": "@trashly/core",
-  "version": "0.0.0",
+  "name": "trashly-core",
+  "version": "0.1.2",
   "description": "A reactive store.",
   "main": "src/index.js",
   "author": "Steve Ruiz",

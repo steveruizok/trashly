@@ -1,5 +1,5 @@
 import "./App.css"
-import { Trashly } from "@trashly/react"
+import { Trashly } from "trashly-react"
 
 const store = new Trashly({
   name: "Trashly",
