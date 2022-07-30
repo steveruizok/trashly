@@ -1,11 +1,11 @@
 # trashly
 
-A reactive store that is fine, really.
+A reactive store that is fine, really. It works with React.
 
-For API documentation, see:
+[![Try it Out](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/s/fancy-hill-yo4sbb?fontsize=14&hidenavigation=1&theme=dark)
 
-- Vanilla `packages/core/README.md`
-- React `packages/react/README.md`
+> **Note:** These docs assume you're using the `trashly-react` library. The vanilla `trashly-core` library is also available and works exactly the same but without the React hooks.
+
 
 ## Development
 
@@ -16,9 +16,6 @@ yarn dev
 ```
 
 ## Installation
-
-> **Note:** These docs assume you're using the `trashly-react` library. The vanilla `trashly-core` library is also available and works exactly the same but without the React hooks.
-
 ```bash
 npm i trashly-react
 ```
