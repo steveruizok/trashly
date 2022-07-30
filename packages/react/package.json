@@ -1,0 +1,29 @@
+{
+  "name": "@trashly/react",
+  "version": "0.0.0",
+  "description": "A reactive store.",
+  "main": "src/index.js",
+  "author": "Steve Ruiz",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "test": "vitest",
+    "test:ci": "vitest run",
+    "dev": "lfg -d",
+    "build": "lfg",
+    "build:packages": "yarn build",
+    "lint": "TIMING=1 eslint src --fix"
+  },
+  "dependencies": {
+    "@trashly/core": "*",
+    "react": "^18"
+  },
+  "devDependencies": {
+    "vitest": "^0.19.1",
+    "@swc/core": "^1.2.204",
+    "@swc/jest": "^0.2.21",
+    "@types/jest": "^28.1.2",
+    "@tldraw/lfg": "^1.1.5",
+    "tsconfig": "*"
+  }
+}
