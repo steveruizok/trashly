@@ -227,8 +227,8 @@ export class Trashly<T extends object> {
         this.history.push(diff(this.prev, this.current))
         this.pointer = this.history.length - 1
         this.didChangeWhilePaused = false
-        this.isPaused = false
       }
+      this.isPaused = false
     }
 
     if (!this.canUndo) return
