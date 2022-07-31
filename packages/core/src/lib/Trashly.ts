@@ -228,6 +228,7 @@ export class Trashly<T extends object> {
         this.pointer = this.history.length - 1
         this.didChangeWhilePaused = false
       }
+
       this.isPaused = false
     }
 
