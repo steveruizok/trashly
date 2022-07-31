@@ -247,17 +247,11 @@ class CustomStore extends Trashly<IStore> {
     return api
   }
 
-  runCommand = (
-    fn: (state: IStore) => Partial<Omit<INode, "id">> & Pick<INode, "id">[]
-  ) => {
+  runCommand = (fn: (state: IStore) => void) => {
     this.willChange()
     const tNext = { ...this.current }
     // ---
-    const changes = fn(tNext)
-    tNext.nodes = { ...tNext.nodes }
-    for (const n of changes) {
-      tNext.nodes[n.id] = { ...tNext.nodes[n.id], ...n }
-    }
+    fn(tNext)
     // ---
     this.current = tNext
     this.didChange()
@@ -285,67 +279,133 @@ class CustomStore extends Trashly<IStore> {
 
   startPointingNode = (id: string) => {
     this.pause()
-      .chain()
-      .setSelectedId(() => id)
-      .setStatus(() => "pointing")
-      .run()
+    this.runCommand((s) => {
+      s.selectedId = id
+      s.status = "pointing"
+    })
   }
 
   movePointingNode = (dx: number, dy: number, shiftKey: boolean) => {
     const { current } = this
 
     if (current.status === "pointing" && current.selectedId) {
-      if (shiftKey) {
-        this.chain()
-          .updateNodes((s) =>
-            Object.values(s.nodes).map((n) => ({
-              id: n.id,
+      this.runCommand((s) => {
+        s.nodes = { ...s.nodes }
+
+        if (shiftKey) {
+          Object.values(s.nodes).forEach((n) => {
+            s.nodes[n.id] = {
+              ...n,
               x: n.x + dx,
               y: n.y + dy,
-            }))
-          )
-          .run()
-
-        return
-      }
-
-      this.chain()
-        .updateNodes((s) => {
-          const node = s.nodes[s.selectedId!]
-          return [{ id: node.id, x: node.x + dx, y: node.y + dy }]
-        })
-        .run()
+            }
+          })
+        } else {
+          const n = s.nodes[s.selectedId!]
+          s.nodes[n.id] = {
+            ...n,
+            x: n.x + dx,
+            y: n.y + dy,
+          }
+        }
+      })
     }
   }
 
   stopPointingNode = () => {
-    this.chain()
-      .setStatus((s) => "idle")
-      .setSelectedId((s) => null)
-      .run()
-      .resume()
+    this.runCommand((s) => {
+      s.status = "idle"
+      s.selectedId = null
+    })
+
+    this.resume()
   }
 
   startPointingCanvas = (x: number, y: number) => {
     const id = nanoid()
 
     this.pause()
-      .chain()
-      .createNodes(() => [
-        { id, x: x - 50, y: y - 50, width: 100, height: 100 },
-      ])
-      .setSelectedId(() => id)
-      .setStatus(() => "pointing")
-      .run()
+
+    this.runCommand((s) => {
+      s.nodes = { ...s.nodes }
+      s.nodes[id] = { id, x: x - 50, y: y - 50, width: 100, height: 100 }
+      s.selectedId = id
+      s.status = "pointing"
+    })
   }
 
   stopPointingCanvas = () => {
-    this.chain()
-      .setStatus((s) => "idle")
-      .setSelectedId((s) => null)
-      .run()
-      .resume()
+    this.runCommand((s) => {
+      s.status = "idle"
+      s.selectedId = null
+    })
+
+    this.resume()
   }
+
+  // startPointingNode = (id: string) => {
+  //   this.pause()
+  //     .chain()
+  //     .setSelectedId(() => id)
+  //     .setStatus(() => "pointing")
+  //     .run()
+  // }
+
+  // movePointingNode = (dx: number, dy: number, shiftKey: boolean) => {
+  //   const { current } = this
+
+  //   if (current.status === "pointing" && current.selectedId) {
+  //     if (shiftKey) {
+  //       this.chain()
+  //         .updateNodes((s) =>
+  //           Object.values(s.nodes).map((n) => ({
+  //             id: n.id,
+  //             x: n.x + dx,
+  //             y: n.y + dy,
+  //           }))
+  //         )
+  //         .run()
+
+  //       return
+  //     }
+
+  //     this.chain()
+  //       .updateNodes((s) => {
+  //         const node = s.nodes[s.selectedId!]
+  //         return [{ id: node.id, x: node.x + dx, y: node.y + dy }]
+  //       })
+  //       .run()
+  //   }
+  // }
+
+  // stopPointingNode = () => {
+  //   this.chain()
+  //     .setStatus((s) => "idle")
+  //     .setSelectedId((s) => null)
+  //     .run()
+  //     .resume()
+  // }
+
+  // startPointingCanvas = (x: number, y: number) => {
+  //   const id = nanoid()
+
+  //   this.pause()
+  //     .chain()
+  //     .createNodes(() => [
+  //       { id, x: x - 50, y: y - 50, width: 100, height: 100 },
+  //     ])
+  //     .setSelectedId(() => id)
+  //     .setStatus(() => "pointing")
+  //     .run()
+  // }
+
+  // stopPointingCanvas = () => {
+  //   this.chain()
+  //     .setStatus((s) => "idle")
+  //     .setSelectedId((s) => null)
+  //     .run()
+  //     .resume()
+  // }
 
   // startPointingNode = (id: string) => {
   //   this.pause()
@@ -417,8 +477,8 @@ const INITIAL_STATE: IStore = {
   nodes: {},
 }
 
-const NODE_COUNT = 5000
-const SIZE = 4
+const NODE_COUNT = 2000
+const SIZE = 8
 const PADDING = 2
 
 const rows = Math.floor(Math.sqrt(NODE_COUNT))

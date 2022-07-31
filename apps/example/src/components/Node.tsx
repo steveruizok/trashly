@@ -17,6 +17,7 @@ export const Node = React.memo(({ node }: { node: INode }) => {
         store.stopPointingNode()
         e.stopPropagation()
       }}
+      fill="rgba(144, 144, 144, .5)"
     />
   )
 })
