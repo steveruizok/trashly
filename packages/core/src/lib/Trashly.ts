@@ -1,7 +1,7 @@
 import set from "lodash.set"
 import unset from "lodash.unset"
 import cloneDeep from "lodash.clonedeep"
-import diff from "./diff"
+import { diff } from "./diff"
 import { Difference } from "./types"
 
 export class Trashly<T extends object> {

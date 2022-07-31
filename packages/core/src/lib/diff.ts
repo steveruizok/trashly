@@ -2,7 +2,7 @@ import { Difference } from "./types"
 
 const richTypes = { Date: true, RegExp: true, String: true, Number: true }
 
-export default function diff(
+export function diff(
   obj: Record<string, any> | any[],
   newObj: Record<string, any> | any[],
   _stack: Record<string, any>[] = []
@@ -73,5 +73,6 @@ export default function diff(
       })
     }
   }
+
   return diffs
 }

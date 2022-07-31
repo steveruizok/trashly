@@ -1,10 +1,9 @@
 import { useStoreContext } from "../store"
 import { Node } from "./Node"
-import { nanoid } from "nanoid"
 
 export function Canvas() {
   const store = useStoreContext()
-  const state = store.useStore()
+  const nodes = store.useStaticSelector((s) => s.nodes)
 
   return (
     <svg
@@ -19,8 +18,8 @@ export function Canvas() {
         store.movePointingNode(e.movementX, e.movementY, e.shiftKey)
       }}
     >
-      {Object.values(state.nodes).map((node) => (
-        <Node key={node.id} {...node} />
+      {Object.values(nodes).map((node) => (
+        <Node key={node.id} node={node} />
       ))}
     </svg>
   )

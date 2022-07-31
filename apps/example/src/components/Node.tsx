@@ -1,16 +1,16 @@
 import React from "react"
 import { INode, useStoreContext } from "../store"
 
-export const Node = React.memo(({ x, y, width, height, id }: INode) => {
+export const Node = React.memo(({ node }: { node: INode }) => {
   const store = useStoreContext()
   return (
     <rect
-      x={x}
-      y={y}
-      width={width}
-      height={height}
+      x={node.x}
+      y={node.y}
+      width={node.width}
+      height={node.height}
       onPointerDown={(e) => {
-        store.startPointingNode(id)
+        store.startPointingNode(node.id)
         e.stopPropagation()
       }}
       onPointerUp={(e) => {
