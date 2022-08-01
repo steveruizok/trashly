@@ -91,37 +91,35 @@ class CustomStore extends Trashly<IStore> {
     const newRefs = new Set<string | number>()
 
     patch.forEach((item) => {
-      const len = item.path.length
+      const { path } = item
       let t = next
+      let key = path[path.length - 1]
 
-      item.path.forEach((step, i) => {
-        if (i < len - 1) {
-          if (!newRefs.has(step)) {
-            newRefs.add(step)
-            t[step] = { ...t[step] }
-          }
-          t = t[step]
-          return
+      for (let i = 0; i < path.length - 1; i++) {
+        if (!newRefs.has(path[i])) {
+          newRefs.add(path[i])
+          t[path[i]] = { ...t[path[i]] }
         }
+        t = t[path[i]]
+      }
 
-        switch (item.type) {
-          case "CREATE": {
-            t[step] = item.value
-            break
-          }
-          case "CHANGE": {
-            t[step] = item.value
-            break
-          }
-          case "REMOVE": {
-            delete t[step]
-            break
-          }
-          default: {
-            throw new Error(`unknown diff entry type: ${(item as any).type}`)
-          }
+      switch (item.type) {
+        case "CREATE": {
+          t[key] = item.value
+          break
         }
-      })
+        case "CHANGE": {
+          t[key] = item.value
+          break
+        }
+        case "REMOVE": {
+          delete t[key]
+          break
+        }
+        default: {
+          throw new Error(`unknown diff entry type: ${(item as any).type}`)
+        }
+      }
     })
 
     this.prev = this.current
@@ -143,39 +141,56 @@ class CustomStore extends Trashly<IStore> {
 
     const next = { ...this.current }
 
+    const delQueue: (() => void)[] = []
+
     patch.forEach((item) => {
-      const len = item.path.length
+      const { path } = item
       let t = next
+      let secondToLastKey = path[path.length - 1]
+      let lastKey = path[path.length - 1]
 
-      item.path.forEach((step, i) => {
-        if (i < len - 1) {
-          if (!newRefs.has(step)) {
-            newRefs.add(step)
-            t[step] = { ...t[step] }
-          }
-          t = t[step]
-          return
+      for (let i = 0; i < path.length - 1; i++) {
+        const step = path[i]
+        if (!newRefs.has(step)) {
+          newRefs.add(step)
+          t[step] = { ...t[step] }
         }
+        t = t[step]
+      }
 
-        switch (item.type) {
-          case "CREATE": {
-            t[step] = item.value
-            break
-          }
-          case "CHANGE": {
-            t[step] = item.value
-            break
-          }
-          case "REMOVE": {
-            delete t[step]
-            break
-          }
-          default: {
-            throw new Error(`unknown diff entry type: ${(item as any).type}`)
-          }
+      switch (item.type) {
+        case "CREATE": {
+          t[lastKey] = item.value
+          break
         }
-      })
+        case "CHANGE": {
+          t[lastKey] = item.value
+          break
+        }
+        case "REMOVE": {
+          if (Array.isArray(t)) {
+            t[lastKey] = REMOVE_SYMBOL
+            delQueue.push(() => {
+              if (secondToLastKey !== undefined) {
+                t[secondToLastKey] = t[secondToLastKey].filter(
+                  (x: any) => x !== REMOVE_SYMBOL
+                )
+              } else {
+                t.filter((x: any) => x !== REMOVE_SYMBOL)
+              }
+            })
+          } else {
+            delete t[lastKey]
+          }
+          break
+        }
+        default: {
+          throw new Error(`unknown diff entry type: ${(item as any).type}`)
+        }
+      }
     })
+
+    delQueue.forEach((t) => t())
 
     if (this.isPaused) {
       if (!this.didChangeWhilePaused) {
@@ -477,8 +492,8 @@ const INITIAL_STATE: IStore = {
   nodes: {},
 }
 
-const NODE_COUNT = 2000
-const SIZE = 8
+const NODE_COUNT = 10000
+const SIZE = 4
 const PADDING = 2
 
 const rows = Math.floor(Math.sqrt(NODE_COUNT))
@@ -501,3 +516,5 @@ export const useStoreInitializer = () => {
 }
 
 export const useStoreContext = () => React.useContext(storeContext)
+
+const REMOVE_SYMBOL = Symbol("remove")
