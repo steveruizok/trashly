@@ -1,5 +1,5 @@
 import React from "react"
-import { useStoreContext } from "../LiquorStore"
+import { useStoreContext } from "../store"
 import { Node } from "./Node"
 
 export function Canvas() {

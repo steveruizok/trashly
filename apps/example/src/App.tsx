@@ -1,7 +1,7 @@
 import { Canvas } from "./components/Canvas"
 import { CCanvas } from "./components/CCanvas"
 import { Controls } from "./components/Controls"
-import { storeContext, useStoreInitializer } from "./LiquorStore"
+import { storeContext, useStoreInitializer } from "./store"
 
 function App() {
   const store = useStoreInitializer()

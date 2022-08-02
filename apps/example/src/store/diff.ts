@@ -1,6 +1,11 @@
 import { Difference } from "./types"
 
-const richTypes = { Date: true, RegExp: true, String: true, Number: true }
+const richTypes: Record<string, boolean> = {
+  Date: true,
+  RegExp: true,
+  String: true,
+  Number: true,
+}
 
 export function diff(
   obj: Record<string, any> | any[],
@@ -28,7 +33,12 @@ export function diff(
     const areObjects =
       typeof oldObjValue === "object" && typeof newObjValue === "object"
 
-    if (oldObjValue && newObjValue && areObjects) {
+    if (
+      oldObjValue &&
+      newObjValue &&
+      areObjects &&
+      !richTypes[Object.getPrototypeOf(oldObjValue).constructor.name]
+    ) {
       // OBJ TO OBJ, NESTED DIFFS
       const nestedDiffs = diff(
         oldObjValue,

@@ -1,5 +1,5 @@
 import React from "react"
-import { INode, LiquorStore, storeContext } from "../LiquorStore"
+import { INode, LiquorStore, storeContext } from "../store"
 
 export class CNode extends React.PureComponent<{ id: string }> {
   static contextType = storeContext as React.Context<LiquorStore>

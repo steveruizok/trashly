@@ -1,5 +1,5 @@
 import React from "react"
-import { INode, useStoreContext } from "../LiquorStore"
+import { INode, useStoreContext } from "../store"
 
 export const Node = React.memo(({ node }: { node: INode }) => {
   const store = useStoreContext()
