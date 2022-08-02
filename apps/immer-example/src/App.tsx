@@ -1,6 +1,6 @@
 import { Canvas } from "./components/Canvas"
 import { Controls } from "./components/Controls"
-import { storeContext, useStoreInitializer } from "./immerstore"
+import { storeContext, useStoreInitializer } from "./store/immerstore"
 
 function App() {
   const store = useStoreInitializer()

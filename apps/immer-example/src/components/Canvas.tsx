@@ -1,5 +1,5 @@
 import React from "react"
-import { useStoreContext } from "../immerstore"
+import { useStoreContext } from "../store/ImmerStore"
 import { Node } from "./Node"
 
 export function Canvas() {
