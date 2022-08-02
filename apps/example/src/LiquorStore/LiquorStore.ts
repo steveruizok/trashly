@@ -1,11 +1,9 @@
 import * as React from "react"
-import set from "lodash.set"
-import unset from "lodash.unset"
 import cloneDeep from "lodash.clonedeep"
 import { diff } from "./diff"
 import { Difference } from "./types"
 import { nanoid } from "nanoid"
-import { applyPatch } from "./applyPatch"
+import { EventEmitter } from "eventemitter3"
 
 export interface INode {
   id: string
@@ -21,8 +19,9 @@ export interface IStore extends Record<string, any> {
   nodes: Record<string, INode>
 }
 
-export class LiquorStore {
+export class LiquorStore extends EventEmitter {
   constructor(initial: IStore) {
+    super()
     this.prev = initial
     this.current = initial
   }
@@ -33,7 +32,7 @@ export class LiquorStore {
   private history: Difference[][] = []
   private isPaused = false
   private didChangeWhilePaused = false
-  private listeners = new Set<() => void>()
+  private subscriptions = new Set<() => void>()
 
   // PRIVATE
 
@@ -49,63 +48,116 @@ export class LiquorStore {
     this.prev = this.current
   }
 
-  protected didChange() {
+  protected didChange(patch: Difference[]) {
     if (!this.isPaused) {
-      // Commit an entry to the history
-      const change = diff(this.prev, this.current)
       this.history = this.history.splice(0, this.pointer + 1)
-      this.history.push(change)
+      this.history.push(patch)
       this.pointer++
     }
 
-    this.notifySubscribers()
-
-    return this
+    this.notifySubscriptions(patch)
   }
 
-  protected notifySubscribers() {
-    this.listeners.forEach((l) => l())
+  protected notifySubscriptions(patch?: Difference[]) {
+    this.emit("change", this, patch)
+    this.subscriptions.forEach((l) => l())
+  }
+
+  protected applyPatch(patch: Difference[], inverse?: boolean) {
+    const refs = new Set<string | number>()
+    const lastRefs = new Set<string | number>()
+    const delQueue: (() => void)[] = []
+    const next = Object.assign({}, this.current)
+
+    // For each operation in the patch...
+    for (const op of patch) {
+      const { path } = op
+      let secondToLastKey = path[path.length - 1]
+      let lastKey = path[path.length - 1]
+
+      lastRefs.add(path.slice(0, -1).join("."))
+
+      let t = next as any
+
+      // Create new object references for each step in the op's path,
+      // unless we've already created an object reference for that step.
+      for (let i = 0; i < path.length - 1; i++) {
+        const step = path[i]
+        const key = path.slice(0, i + 1).join(".")
+
+        if (!refs.has(key)) {
+          refs.add(key)
+          t[step] = Object.assign({}, t[step])
+        }
+
+        t = t[step]
+      }
+
+      if (inverse) {
+        // Apply the undo of each operation
+        switch (op.type) {
+          case "REMOVE": {
+            t[lastKey] = op.oldValue
+            break
+          }
+          case "CHANGE": {
+            t[lastKey] = op.oldValue
+            break
+          }
+          case "CREATE": {
+            if (Array.isArray(t)) {
+              t[lastKey as number] = REMOVE_SYMBOL
+              delQueue.push(() => {
+                if (secondToLastKey !== undefined)
+                  t[secondToLastKey] = t[secondToLastKey].filter(
+                    (x: any) => x !== REMOVE_SYMBOL
+                  )
+                else t.filter((x: any) => x !== REMOVE_SYMBOL)
+              })
+            } else delete t[lastKey]
+
+            break
+          }
+        }
+      } else {
+        // Apply the operation
+        switch (op.type) {
+          case "CREATE": {
+            t[lastKey] = op.value
+            break
+          }
+          case "CHANGE": {
+            t[lastKey] = op.value
+            break
+          }
+          case "REMOVE": {
+            if (Array.isArray(t)) {
+              t[lastKey as number] = REMOVE_SYMBOL
+              delQueue.push(() => {
+                if (secondToLastKey !== undefined)
+                  t[secondToLastKey] = t[secondToLastKey].filter(
+                    (x: any) => x !== REMOVE_SYMBOL
+                  )
+                else t.filter((x: any) => x !== REMOVE_SYMBOL)
+              })
+            } else delete t[lastKey]
+
+            break
+          }
+        }
+      }
+    }
+
+    // emit events for each new ref?
+    lastRefs.forEach((r) => this.emit(r as string, this))
+
+    // Delete each item in the delete queue
+    delQueue.forEach((t) => t())
+
+    return next
   }
 
   // PUBLIC API
-
-  /**
-   * Get whether the store is capable of undoing.
-   * @public
-   */
-  get canUndo() {
-    return (
-      this.pointer >= 0 ||
-      (this.pointer === 0 && this.isPaused && this.didChangeWhilePaused)
-    )
-  }
-
-  /**
-   * Get whether the store is capable of redoing.
-   * @public
-   */
-  get canRedo() {
-    return this.pointer < this.history.length - 1
-  }
-
-  /**
-   * Replace the entire state tree with a different state.
-   *
-   * @example
-   * store.replaceState(newState)
-   *
-   * @param state The new state to replace the current state with.
-   * @public
-   */
-  replaceState = (state: IStore) => {
-    this.willChange()
-
-    this.prev = this.current
-    this.current = this.processStateBeforeMerging(state)
-
-    this.didChange()
-    return this
-  }
 
   /**
    * Set a new state by mutating the current state.
@@ -120,47 +172,43 @@ export class LiquorStore {
    * @public
    */
   mutate = (mutator: (state: IStore) => void) => {
+    // Todo: Is there a way to specify which part of the state we'll be mutating? e.g. mutate("nodes.box1", (node) => { ... })
     const draft = cloneDeep(this.current)
 
     mutator(draft)
 
-    const patch: Difference[] = diff(this.current, draft)
+    const patch: Difference[] = diff(this.current, this.processState(draft))
 
-    const next = applyPatch(this.current, patch)
+    const next = this.applyPatch(patch)
 
-    if (this.isPaused) {
-      if (!this.didChangeWhilePaused) {
-        this.didChangeWhilePaused = true
-      }
-    }
+    this.willChange()
 
-    this.prev = this.current
-    this.current = this.processStateBeforeMerging(next)
+    this.current = next
 
-    if (!this.isPaused) {
-      // Commit an entry to the history
-      this.history = this.history.splice(0, this.pointer + 1)
-      this.history.push(patch)
-      this.pointer++
-    }
-
-    this.notifySubscribers()
+    this.didChange(patch)
   }
 
   /**
    * Run a command that mutates the state. Note that this command assumes that you will create new object references for any objects that are mutated.
    * @example
-   * store.runCommand(state => {
+   * store.update(state => {
    *   state.user = { ...state.user, address: { ...state.user.address } }
    *   state.user.address.street = "123 Main St"
    * })
    */
-  runCommand = (fn: (state: IStore) => void) => {
+  update = (fn: (state: IStore) => void) => {
     this.willChange()
-    const tNext = { ...this.current }
+
+    const tNext = Object.assign({}, this.current)
+
     fn(tNext)
-    this.current = tNext
-    this.didChange()
+
+    this.current = this.processState(tNext)
+
+    const patch = diff(this.prev, this.current)
+
+    this.didChange(patch)
+
     return this
   }
 
@@ -172,7 +220,8 @@ export class LiquorStore {
    */
   pause = () => {
     this.isPaused = true
-    this.notifySubscribers()
+    this.notifySubscriptions()
+    this.emit("pause", this)
     return this
   }
 
@@ -194,7 +243,8 @@ export class LiquorStore {
     }
 
     this.isPaused = false
-    this.notifySubscribers()
+    this.emit("resume")
+    this.notifySubscriptions()
     return this
   }
 
@@ -219,35 +269,13 @@ export class LiquorStore {
     if (!this.canUndo) return
 
     const patch = this.history[this.pointer]
-    const next = cloneDeep(this.current)
-
-    for (let i = 0; i < patch.length; i++) {
-      const item = patch[i]
-
-      switch (item.type) {
-        case "CREATE": {
-          unset(next, item.path)
-          break
-        }
-        case "CHANGE": {
-          set(next, item.path, item.oldValue)
-          break
-        }
-        case "REMOVE": {
-          set(next, item.path, item.oldValue)
-          break
-        }
-        default: {
-          throw new Error(`unknown diff entry type: ${(item as any).type}`)
-        }
-      }
-    }
 
     this.pointer--
     this.prev = this.current
-    this.current = next
+    this.current = this.applyPatch(patch, true)
 
-    this.notifySubscribers()
+    this.emit("undo")
+    this.notifySubscriptions(patch)
 
     return this
   }
@@ -275,77 +303,223 @@ export class LiquorStore {
 
     this.pointer++
 
-    const patches = this.history[this.pointer]
-    const next = cloneDeep(this.current)
-
-    for (let i = 0; i < patches.length; i++) {
-      const item = patches[i]
-
-      switch (item.type) {
-        case "CREATE": {
-          set(next, item.path, item.value)
-          break
-        }
-        case "CHANGE": {
-          set(next, item.path, item.value)
-          break
-        }
-        case "REMOVE": {
-          unset(next, item.path)
-          break
-        }
-        default: {
-          throw new Error(`unknown diff entry type: ${(item as any).type}`)
-        }
-      }
-    }
+    const patch = this.history[this.pointer]
 
     this.prev = this.current
-    this.current = this.processStateBeforeMerging(next)
+    this.current = this.applyPatch(patch)
 
-    this.notifySubscribers()
+    this.emit("redo")
+    this.notifySubscriptions(patch)
 
     return this
   }
 
-  processStateBeforeMerging(state: IStore) {
+  /**
+   * Process the state in some way before merging.
+   * @public
+   */
+  processState(state: IStore) {
     return state
   }
 
+  /**
+   * Get the current state.
+   * @returns boolean The current state.
+   * @example
+   * store.getState()
+   * @public
+   */
   getState = () => {
     return this.current
   }
 
+  /**
+   * Get whether the store's history is paused.
+   * @returns boolean Whether the store's history is paused.
+   * @example
+   * store.getIsPaused()
+   * @public
+   */
   getIsPaused = () => {
     return this.isPaused
   }
 
+  /**
+   * Get whether the store can perform an undo.
+   * @returns boolean Whether the store can perform an undo.
+   * @example
+   * store.getCanUndo()
+   * @public
+   */
   getCanUndo = () => {
     return this.canUndo
   }
 
+  /**
+   * Get whether the store can perform an redo.
+   * @returns boolean Whether the store can perform a redo.
+   * @example
+   * store.getCanRedo()
+   * @public
+   */
   getCanRedo = () => {
     return this.canRedo
   }
 
   subscribe = (listener: () => void) => {
-    this.listeners.add(listener)
-    return () => this.listeners.delete(listener)
+    this.subscriptions.add(listener)
+    return () => this.subscriptions.delete(listener)
+  }
+
+  /**
+   * Get whether the store is capable of undoing.
+   * @public
+   */
+  get canUndo() {
+    return (
+      this.pointer >= 0 ||
+      (this.pointer === 0 && this.isPaused && this.didChangeWhilePaused)
+    )
+  }
+
+  /**
+   * Get whether the store is capable of redoing.
+   * @public
+   */
+  get canRedo() {
+    return this.pointer < this.history.length - 1
+  }
+
+  get state() {
+    return this.current
+  }
+
+  /* -------------------- // React -------------------- */
+
+  useCanUndo = () => {
+    return React.useSyncExternalStore(this.subscribe, this.getCanUndo)
+  }
+
+  useCanRedo = () => {
+    return React.useSyncExternalStore(this.subscribe, this.getCanRedo)
+  }
+
+  useIsPaused = () => {
+    return React.useSyncExternalStore(this.subscribe, this.getIsPaused)
+  }
+
+  useStore = () => {
+    return React.useSyncExternalStore<IStore>(this.subscribe, this.getState)
+  }
+
+  useSelector = <K extends (state: IStore) => any>(selector: K) => {
+    const fn = React.useCallback(() => selector(this.getState()), [selector])
+    return React.useSyncExternalStore<ReturnType<K>>(this.subscribe, fn)
+  }
+
+  useStaticSelector = <K extends (state: IStore) => any>(selector: K) => {
+    const [fn] = React.useState(() => () => selector(this.getState()))
+    return React.useSyncExternalStore<ReturnType<K>>(this.subscribe, fn)
+  }
+
+  usePath = (path: string) => {
+    const [_, ss] = React.useState(0)
+
+    React.useEffect(() => {
+      const forceUpdate = () => ss((s) => s + 1)
+      this.addListener(path, forceUpdate)
+      return () => void this.removeListener(path, forceUpdate)
+    }, [])
+  }
+
+  /* ------------------ Custom Events ----------------- */
+
+  // EVENTS
+
+  startPointingNode = (id: string) => {
+    this.pause()
+    this.mutate((s) => {
+      s.selectedId = id
+      s.status = "pointing"
+    })
+    // this.update((s) => {
+    //   s.selectedId = id
+    //   s.status = "pointing"
+    // })
+  }
+
+  movePointingNode = (dx: number, dy: number, shiftKey: boolean) => {
+    const { current } = this
+
+    if (current.status === "pointing" && current.selectedId) {
+      this.mutate((s) => {
+        // s.nodes = { ...s.nodes }
+
+        if (shiftKey) {
+          Object.values(s.nodes).forEach((n) => {
+            s.nodes[n.id].x += dx
+            s.nodes[n.id].y += dy
+            // s.nodes[n.id] = {
+            //   ...n,
+            //   x: n.x + dx,
+            //   y: n.y + dy,
+            // }
+          })
+        } else {
+          const n = s.nodes[s.selectedId!]
+          s.nodes[n.id].x += dx
+          s.nodes[n.id].y += dy
+          // s.nodes[n.id] = {
+          //   ...n,
+          //   x: n.x + dx,
+          //   y: n.y + dy,
+          // }
+        }
+      })
+    }
+  }
+
+  stopPointingNode = () => {
+    this.mutate((s) => {
+      s.status = "idle"
+      s.selectedId = null
+    })
+
+    this.resume()
+  }
+
+  startPointingCanvas = (x: number, y: number) => {
+    const id = nanoid()
+
+    this.pause()
+
+    this.mutate((s) => {
+      // s.nodes = { ...s.nodes }
+      s.nodes[id] = { id, x: x - 50, y: y - 50, width: 100, height: 100 }
+      s.selectedId = id
+      s.status = "pointing"
+    })
+  }
+
+  stopPointingCanvas = () => {
+    this.mutate((s) => {
+      s.status = "idle"
+      s.selectedId = null
+    })
+
+    this.resume()
   }
 }
 
-export const storeContext = React.createContext({} as IStore)
+const NODE_COUNT = 1000
+const SIZE = 8
+const PADDING = 2
 
 const INITIAL_STATE: IStore = {
   status: "idle",
   selectedId: null,
   nodes: {},
 }
-
-const NODE_COUNT = 1000
-const SIZE = 4
-const PADDING = 2
-
 const rows = Math.floor(Math.sqrt(NODE_COUNT))
 
 for (let i = 0; i < NODE_COUNT; i++) {
@@ -359,10 +533,15 @@ for (let i = 0; i < NODE_COUNT; i++) {
   }
 }
 
+export const storeContext = React.createContext({} as LiquorStore)
+
 export const useStoreInitializer = () => {
   const [store] = React.useState(() => new LiquorStore(INITIAL_STATE))
+  ;(window as any).store = store
 
   return store
 }
 
 export const useStoreContext = () => React.useContext(storeContext)
+
+const REMOVE_SYMBOL = Symbol("remove")

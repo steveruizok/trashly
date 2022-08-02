@@ -302,8 +302,8 @@ const INITIAL_STATE: IStore = {
   nodes: {},
 }
 
-const NODE_COUNT = 5000
-const SIZE = 4
+const NODE_COUNT = 1000
+const SIZE = 8
 const PADDING = 2
 
 const rows = Math.floor(Math.sqrt(NODE_COUNT))

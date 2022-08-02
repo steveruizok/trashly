@@ -3,7 +3,9 @@ import { Difference } from "./types"
 export function applyPatch<T>(target: T, patch: Difference[]) {
   const refs = new Set<string | number>()
   const delQueue: (() => void)[] = []
-  const next = (Array.isArray(target) ? [...target] : { ...target }) as T
+  const next = (Array.isArray(target)
+    ? target.slice()
+    : Object.assign({}, target)) as T
 
   patch.forEach((item) => {
     const { path } = item
@@ -18,7 +20,7 @@ export function applyPatch<T>(target: T, patch: Difference[]) {
       // Create new object references
       if (!refs.has(step)) {
         refs.add(step)
-        t[step] = { ...t[step] }
+        t[step] = Object.assign({}, t[step])
       }
 
       t = t[step]
@@ -55,6 +57,8 @@ export function applyPatch<T>(target: T, patch: Difference[]) {
       }
     }
   })
+
+  // emit events for each new ref?
 
   delQueue.forEach((t) => t())
 

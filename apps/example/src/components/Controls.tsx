@@ -1,5 +1,5 @@
 import { stopPropagation } from "../shared"
-import { useStoreContext } from "../store"
+import { useStoreContext } from "../LiquorStore"
 
 export function Controls() {
   const store = useStoreContext()

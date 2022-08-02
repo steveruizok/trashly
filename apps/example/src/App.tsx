@@ -1,13 +1,14 @@
 import { Canvas } from "./components/Canvas"
+import { CCanvas } from "./components/CCanvas"
 import { Controls } from "./components/Controls"
-import { storeContext, useStoreInitializer } from "./store"
+import { storeContext, useStoreInitializer } from "./LiquorStore"
 
 function App() {
   const store = useStoreInitializer()
 
   return (
     <storeContext.Provider value={store}>
-      <Canvas />
+      <CCanvas />
       <Controls />
     </storeContext.Provider>
   )

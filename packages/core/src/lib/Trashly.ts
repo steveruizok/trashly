@@ -39,7 +39,6 @@ export class Trashly<T extends object> {
 
   protected didChange() {
     if (!this.isPaused) {
-      // Commit an entry to the history
       const change = diff(this.prev, this.current)
       this.history = this.history.splice(0, this.pointer + 1)
       this.history.push(change)
